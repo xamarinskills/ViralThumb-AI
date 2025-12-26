@@ -34,6 +34,21 @@
           boxShadow: {
             'neon': '0 0 20px rgba(140, 37, 244, 0.4)',
             'neon-strong': '0 0 30px rgba(140, 37, 244, 0.6)',
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'shake': 'shake 0.4s ease-in-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            shake: {
+              '0%, 100%': { transform: 'translateX(0)' },
+              '25%': { transform: 'translateX(-5px)' },
+              '75%': { transform: 'translateX(5px)' },
+            }
           }
         }
       }
@@ -62,6 +77,10 @@
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: #8c25f4;
+    }
+    /* Explicit Animation Class for JS/Dynamic Usage */
+    .animate-fade-in {
+      animation: fadeIn 0.5s ease-out forwards;
     }
   </style>
 <script type="importmap">

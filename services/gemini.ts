@@ -1,34 +1,53 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Function to generate high-quality YouTube thumbnail variations using Gemini 2.5 Flash Image model
+// Helper to extract mime type from data URL
+const getMimeType = (dataUrl: string) => {
+  const match = dataUrl.match(/^data:(.*);base64,/);
+  return match ? match[1] : "image/jpeg";
+};
+
+/**
+ * Generates viral thumbnails with professional blending and multilingual support.
+ */
 export async function generateThumbnailVariation(prompt: string, style: string, assets: string[], variationIndex: number) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const variationHints = [
-    "Focus on high-contrast lighting and bold facial expressions.",
-    "Focus on cinematic depth of field and vibrant environmental colors.",
-    "Focus on extreme close-up details and aggressive text-safe composition."
+    "Close-up focal point, extreme contrast, high-energy lighting, vibrant colors.",
+    "Wide cinematic shot, dramatic depth of field, atmospheric lighting, moody shadows.",
+    "Action-oriented composition, dynamic elements, bold saturation, attention-grabbing center."
   ];
 
-  const fullPrompt = `High-quality, viral YouTube thumbnail. Style: ${style}. Content: ${prompt}. ${variationHints[variationIndex]}. Cinematic lighting, bold elements, highly saturated, professional composition, attention-grabbing.`;
+  // Instructions for multilingual support and professional blending
+  const systemPrompt = `
+    TASK: Generate a viral, high-CTR (Click-Through Rate) YouTube thumbnail image.
+    STYLE: ${style}.
+    USER PROMPT (Interpret correctly regardless of language): "${prompt}"
+    VARIATION STRATEGY: ${variationHints[variationIndex]}
 
-  const contents = {
-    parts: [
-      { text: fullPrompt },
-      ...assets.map(base64 => ({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: base64.split(',')[1]
-        }
-      }))
-    ]
-  };
+    CRITICAL INSTRUCTIONS:
+    1. LANGUAGE INDEPENDENCE: The user prompt might be in any language (Hindi, Spanish, Japanese, etc.). Understand the emotional and visual intent. 
+    2. ASSET BLENDING: If user images (assets) are provided, you MUST use the likeness of the people/objects in those images as the central subjects. Blend them seamlessly into the new environment. Match the lighting, shadows, and color grading of the background to the subjects.
+    3. NO TEXT OVERLAY: Do not add any text to the image unless it is part of the natural environment (like a sign).
+    4. QUALITY: High definition, cinematic, professional composition. Optimized for small mobile screens.
+  `;
+
+  const parts = [
+    { text: systemPrompt },
+    ...assets.map(base64 => ({
+      inlineData: {
+        mimeType: getMimeType(base64),
+        data: base64.split(',')[1]
+      }
+    }))
+  ];
 
   try {
+    console.log(`[Variation ${variationIndex}] Requesting generation...`);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: contents,
+      contents: { parts },
       config: {
         imageConfig: {
           aspectRatio: "16:9"
@@ -36,59 +55,73 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
       }
     });
 
-    for (const candidate of response.candidates || []) {
-      for (const part of candidate.content.parts || []) {
-        if (part.inlineData) {
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    if (response.candidates && response.candidates.length > 0) {
+      const candidate = response.candidates[0];
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData) {
+            console.log(`[Variation ${variationIndex}] Success: Image received.`);
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          }
         }
       }
     }
     
-    throw new Error("No image data returned from Gemini");
-  } catch (error) {
-    console.error("Gemini Generation Error:", error);
-    throw error;
+    if (response.text) {
+      console.warn(`[Variation ${variationIndex}] Model returned text instead of image:`, response.text);
+      throw new Error(`AI Feedback: ${response.text}`);
+    }
+
+    throw new Error("No image data returned from model.");
+  } catch (error: any) {
+    console.error(`[Variation ${variationIndex}] Gemini Image Error:`, error);
+    throw new Error(error.message || "Failed to generate thumbnail.");
   }
 }
 
-// Function to generate viral video suggestions based on the thumbnail prompt
 export async function generateVideoSuggestions(prompt: string, style: string) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Generate 3 viral YouTube video titles and a short engaging description for a video based on this thumbnail concept: "${prompt}" in style "${style}".`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          titles: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: "List of 3 high-CTR viral titles."
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `User Thumbnail Concept: "${prompt}". Style: "${style}". 
+      Generate 3 viral titles (in the same language as the prompt if applicable) and a short description.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            titles: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "3 viral titles."
+            },
+            description: {
+              type: Type.STRING,
+              description: "A short engaging description."
+            }
           },
-          description: {
-            type: Type.STRING,
-            description: "A short, engaging video description."
-          }
-        },
-        required: ["titles", "description"]
+          required: ["titles", "description"]
+        }
       }
-    }
-  });
+    });
 
-  return JSON.parse(response.text || "{}");
+    return JSON.parse(response.text || "{}");
+  } catch (err) {
+    return { titles: ["Viral Title 1", "Viral Title 2", "Viral Title 3"], description: "Optimized for the algorithm." };
+  }
 }
 
-// Function to enhance a user's prompt for better image generation results
 export async function enhancePrompt(prompt: string) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Transform this short YouTube thumbnail idea into a highly descriptive, cinematic, and professional image generation prompt. Keep it focused on visual elements, composition, and lighting. Output only the enhanced prompt text.\n\nIdea: ${prompt}`,
-  });
-
-  return response.text?.trim() || prompt;
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Convert this simple thumbnail idea into a professional, cinematic visual prompt for an image generator. Keep the language context.\n\nIdea: ${prompt}`,
+    });
+    return response.text?.trim() || prompt;
+  } catch (err) {
+    return prompt;
+  }
 }
