@@ -34,8 +34,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
   const [history, setHistory] = useState<Thumbnail[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploadedAssets, setUploadedAssets] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
   
   const [timeFilter, setTimeFilter] = useState('All Time');
   const [styleFilter, setStyleFilter] = useState('All Styles');
@@ -51,13 +49,12 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Recovery and storage with high safety
   useEffect(() => {
     try {
       const saved = localStorage.getItem('vthumb_history');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setHistory(parsed.slice(0, 10)); // Max 10 to save space
+        if (Array.isArray(parsed)) setHistory(parsed.slice(0, 10));
       }
     } catch (e) {
       console.error("History recovery error", e);
@@ -87,13 +84,6 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
 
   const removeAsset = (index: number) => setUploadedAssets(prev => prev.filter((_, i) => i !== index));
 
-  const selectTemplate = (template: Template) => {
-    setSelectedTemplate(template);
-    setPrompt(`Thumbnail inspired by "${template.title}".`);
-    setStyle(template.category === 'Gaming' ? 'Anime / Manga Style' : 'MrBeast Style (High Saturation)');
-    setShowTemplateModal(false);
-  };
-
   const handleMagicPrompt = async () => {
     if (!prompt || isEnhancing) return;
     setIsEnhancing(true);
@@ -122,9 +112,9 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
             variationUrls.push(img);
             setResults(prev => [...prev, img]);
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error(`Error in variation ${i}`, e);
-          if (i === 0) throw new Error("The AI model is currently busy. Please try a shorter prompt.");
+          if (i === 0) throw new Error(e.message || "The AI model is currently busy. Please try again.");
         }
         if (i < 2) await new Promise(r => setTimeout(r, 1200));
       }
@@ -140,8 +130,8 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
       setHistory(prev => [...newItems, ...prev].slice(0, 20));
 
       setIsSuggestionsLoading(true);
-      const data = await generateVideoSuggestions(prompt, style);
-      setSuggestions(data || { titles: ["Viral Video Concept"], description: "Optimized for search." });
+      const data = await generateVideoSuggestions(prompt, style, variationUrls);
+      setSuggestions(data || { titles: ["Viral Video A", "Viral Video B", "Viral Video C"], description: "Optimized for search." });
     } catch (err: any) {
       setError(err.message || "Failed to generate variations.");
     } finally {
@@ -267,24 +257,48 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
         {/* Right: Output Canvas */}
         <main className="flex-1 bg-background p-12 overflow-y-auto custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-24">
-            {/* CURRENT OUTPUT GRID */}
             <section>
               <h2 className="text-3xl font-black tracking-tight mb-12">Creative Output</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 {results.map((url, idx) => (
-                  <div key={`res-${idx}`} className="group relative aspect-video rounded-[32px] overflow-hidden border border-white/10 shadow-2xl bg-surface-light animate-fade-in hover:shadow-neon/40 transition-all duration-500">
-                    <img src={url} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-6 transition-all duration-300 backdrop-blur-md">
-                      <button onClick={() => setPreviewingIndex(idx)} className="px-7 py-3.5 bg-white text-black text-xs font-black rounded-xl hover:scale-110 active:scale-90 transition-all">PREVIEW</button>
-                      <button onClick={() => setEditingIndex(idx)} className="w-14 h-14 bg-primary text-white flex items-center justify-center rounded-xl hover:scale-110 active:scale-90 transition-all shadow-neon"><span className="material-symbols-outlined">edit</span></button>
+                  <div key={`res-group-${idx}`} className="flex flex-col gap-4 animate-fade-in">
+                    <div className="group relative aspect-video rounded-[32px] overflow-hidden border border-white/10 shadow-2xl bg-surface-light hover:shadow-neon/40 transition-all duration-500">
+                      <img src={url} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-6 transition-all duration-300 backdrop-blur-md">
+                        <button onClick={() => setPreviewingIndex(idx)} className="px-7 py-3.5 bg-white text-black text-xs font-black rounded-xl hover:scale-110 active:scale-90 transition-all">PREVIEW</button>
+                        <button onClick={() => setEditingIndex(idx)} className="w-14 h-14 bg-primary text-white flex items-center justify-center rounded-xl hover:scale-110 active:scale-90 transition-all shadow-neon"><span className="material-symbols-outlined">edit</span></button>
+                      </div>
+                    </div>
+                    
+                    <div className="px-2 mt-2">
+                       {isSuggestionsLoading ? (
+                          <div className="space-y-2">
+                            <div className="h-4 w-full bg-white/5 animate-pulse rounded" />
+                            <div className="h-4 w-2/3 bg-white/5 animate-pulse rounded" />
+                          </div>
+                       ) : (
+                         <>
+                           <h3 className="text-[16px] font-black leading-tight text-white/95 line-clamp-2">
+                              {suggestions?.titles?.[idx] || `Clickbait Concept #${idx + 1}`}
+                           </h3>
+                           <div className="flex items-center gap-2 mt-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">High-CTR Concept</span>
+                              <div className="w-1 h-1 rounded-full bg-white/20"></div>
+                              <span className="text-[10px] font-bold text-text-secondary">AI Analyzed</span>
+                           </div>
+                         </>
+                       )}
                     </div>
                   </div>
                 ))}
                 
                 {isGenerating && Array.from({ length: Math.max(0, 3 - results.length) }).map((_, i) => (
-                  <div key={`skel-${i}`} className="aspect-video rounded-[32px] bg-surface-light border border-white/5 flex flex-col items-center justify-center gap-5 animate-pulse">
-                    <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-neon" />
-                    <span className="text-[10px] font-black text-text-secondary uppercase tracking-[0.2em]">Crafting Variation {results.length + i + 1}</span>
+                  <div key={`skel-group-${i}`} className="flex flex-col gap-4">
+                    <div className="aspect-video rounded-[32px] bg-surface-light border border-white/5 flex flex-col items-center justify-center gap-5 animate-pulse">
+                      <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-neon" />
+                    </div>
+                    <div className="h-4 w-3/4 bg-white/5 rounded animate-pulse ml-2" />
+                    <div className="h-3 w-1/4 bg-white/5 rounded animate-pulse ml-2" />
                   </div>
                 ))}
               </div>
@@ -338,139 +352,169 @@ const GeneratorPage: React.FC<GeneratorPageProps> = ({ user, onNavigate }) => {
         </main>
       </div>
 
-      {/* PIXEL-PERFECT YOUTUBE PLAYER MOCKUP MODAL */}
-      {previewingIndex !== null && results[previewingIndex] && (
-        <div className="fixed inset-0 z-[150] bg-[#0f0f0f] flex flex-col overflow-hidden animate-fade-in">
-          {/* YouTube Top Bar */}
-          <header className="h-14 px-4 flex items-center justify-between bg-[#0f0f0f] border-b border-transparent">
+      {/* YOUTUBE PREVIEW MODAL */}
+      {previewingIndex !== null && (
+        <div className="fixed inset-0 z-[150] bg-[#0f0f0f] flex flex-col overflow-y-auto custom-scrollbar animate-fade-in">
+          {/* Mock YouTube Top Bar */}
+          <header className="h-14 px-4 flex items-center justify-between sticky top-0 bg-[#0f0f0f] z-[160] border-b border-white/5">
             <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-white/10 rounded-full"><span className="material-symbols-outlined text-white">menu</span></button>
-              <div className="flex items-center gap-0.5">
-                <img src="https://www.gstatic.com/youtube/img/branding/favicon/favicon_144x144.png" className="w-8 h-8" />
-                <span className="text-lg font-bold tracking-tighter flex items-center">YouTube<sup className="text-[8px] font-normal ml-0.5 opacity-60">IN</sup></span>
-              </div>
+               {/* Close button replaces hamburger */}
+               <button onClick={() => setPreviewingIndex(null)} className="material-symbols-outlined hover:bg-white/10 p-2 rounded-full">close</button>
+               <div className="flex items-center gap-1 cursor-pointer">
+                  <div className="w-8 h-6 bg-red-600 rounded-md flex items-center justify-center">
+                    <span className="material-symbols-outlined text-white text-[18px] fill-1">play_arrow</span>
+                  </div>
+                  <span className="font-bold tracking-tighter text-xl">YouTube</span>
+               </div>
             </div>
-            
-            <div className="flex-1 max-w-[720px] mx-10 flex items-center gap-4">
-              <div className="flex-1 flex items-center h-10 bg-[#121212] border border-[#333] rounded-full overflow-hidden">
-                <input type="text" placeholder="Search" className="flex-1 px-4 bg-transparent outline-none text-sm placeholder:text-white/40" />
-                <button className="w-16 h-full bg-[#222] border-l border-[#333] flex items-center justify-center hover:bg-[#333]"><span className="material-symbols-outlined text-white text-xl">search</span></button>
-              </div>
-              <button className="w-10 h-10 rounded-full bg-[#181818] hover:bg-[#222] flex items-center justify-center"><span className="material-symbols-outlined text-white text-xl">mic</span></button>
+            <div className="hidden md:flex items-center flex-1 max-w-2xl px-8">
+               <div className="flex flex-1 items-center bg-[#121212] border border-white/10 rounded-full pl-5">
+                  <input type="text" placeholder="Search" className="flex-1 bg-transparent outline-none py-2 text-sm" />
+                  <button className="bg-white/5 px-5 h-10 rounded-r-full border-l border-white/10 hover:bg-white/10">
+                    <span className="material-symbols-outlined text-[20px]">search</span>
+                  </button>
+               </div>
+               <button className="material-symbols-outlined ml-4 bg-[#121212] p-2 rounded-full hover:bg-white/10">mic</button>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button className="h-10 px-4 rounded-full flex items-center gap-2 hover:bg-white/10"><span className="material-symbols-outlined text-white">video_call</span><span className="text-sm font-medium">Create</span></button>
-              <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center"><span className="material-symbols-outlined text-white">notifications</span></button>
-              <button className="w-8 h-8 rounded-full bg-pink-600 flex items-center justify-center text-[10px] font-bold">R</button>
-              <button onClick={() => setPreviewingIndex(null)} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center ml-2"><span className="material-symbols-outlined text-white">close</span></button>
+            <div className="flex items-center gap-4">
+               <span className="material-symbols-outlined hover:bg-white/10 p-2 rounded-full">video_call</span>
+               <span className="material-symbols-outlined hover:bg-white/10 p-2 rounded-full">notifications</span>
+               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-xs text-primary">C</div>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0f0f0f] px-6 md:px-14 py-6">
-            <div className="max-w-[1700px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
-              
-              {/* Primary Content (Left) */}
-              <div className="space-y-4">
-                {/* Main Video Player */}
-                <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black shadow-2xl border border-white/5 group">
-                  <img src={results[previewingIndex]} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                    <div className="h-1 bg-white/20 rounded-full mb-3"><div className="h-full w-1/3 bg-red-600 rounded-full"></div></div>
-                    <div className="flex items-center justify-between"><div className="flex gap-4"><span className="material-symbols-outlined">play_arrow</span><span className="material-symbols-outlined">skip_next</span><span className="material-symbols-outlined">volume_up</span><span className="text-xs">0:45 / 15:00</span></div><div className="flex gap-4"><span className="material-symbols-outlined">settings</span><span className="material-symbols-outlined">fullscreen</span></div></div>
-                  </div>
-                </div>
-
-                {/* Video Info Header */}
-                <h1 className="text-xl font-bold leading-tight">{suggestions?.titles?.[previewingIndex] || "Bangladesh में हुए \"Anti Indian Forces\" Expose | @RJRaunac"}</h1>
-
-                {/* Channel & Actions Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <img src="https://picsum.photos/seed/rj/80/80" className="w-10 h-10 rounded-full" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1"><span className="font-bold text-sm truncate">RJ Raunac</span><span className="material-symbols-outlined text-[14px] text-white/60 fill-1">check_circle</span></div>
-                      <p className="text-[12px] text-white/60">4.91M subscribers</p>
+          <div className="max-w-[1700px] mx-auto w-full px-4 lg:px-20 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-8">
+              {/* Video Player Area */}
+              <div className="aspect-video w-full bg-black rounded-xl overflow-hidden shadow-2xl relative group ring-1 ring-white/10">
+                 <img src={results[previewingIndex]} className="w-full h-full object-cover" />
+                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                    <div className="h-1 bg-white/20 rounded-full mb-3 overflow-hidden">
+                       <div className="h-full bg-red-600 w-1/3 shadow-[0_0_10px_rgba(220,38,38,0.8)]"></div>
                     </div>
-                    <button className="ml-3 px-4 h-9 bg-white text-black rounded-full text-sm font-bold hover:bg-[#d9d9d9] transition-colors">Subscribe</button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-9 bg-white/10 rounded-full overflow-hidden">
-                      <button className="flex items-center gap-2 px-4 hover:bg-white/20 border-r border-white/10 text-sm font-medium"><span className="material-symbols-outlined text-sm">thumb_up</span>36K</button>
-                      <button className="px-3 hover:bg-white/20"><span className="material-symbols-outlined text-sm">thumb_down</span></button>
+                    <div className="flex items-center justify-between">
+                       <div className="flex gap-4">
+                          <span className="material-symbols-outlined fill-1">play_arrow</span>
+                          <span className="material-symbols-outlined">skip_next</span>
+                          <span className="material-symbols-outlined">volume_up</span>
+                       </div>
+                       <div className="flex gap-4 items-center">
+                          <span className="text-[11px] font-medium opacity-80">Settings</span>
+                          <span className="material-symbols-outlined text-[20px]">fullscreen</span>
+                       </div>
                     </div>
-                    <button className="h-9 px-4 bg-white/10 hover:bg-white/20 rounded-full flex items-center gap-2 text-sm font-medium"><span className="material-symbols-outlined text-sm">share</span>Share</button>
-                    <button className="h-9 px-4 bg-white/10 hover:bg-white/20 rounded-full flex items-center gap-2 text-sm font-medium"><span className="material-symbols-outlined text-sm">auto_fix_high</span>Ask</button>
-                    <button className="h-9 px-4 bg-white/10 hover:bg-white/20 rounded-full flex items-center gap-2 text-sm font-medium"><span className="material-symbols-outlined text-sm">bookmark</span>Save</button>
-                    <button className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center"><span className="material-symbols-outlined text-sm">more_horiz</span></button>
-                  </div>
+                 </div>
+              </div>
+
+              {/* Title & Actions */}
+              <div className="mt-4">
+                <h1 className="text-xl md:text-2xl font-black mb-3 leading-tight tracking-tight">
+                   {suggestions?.titles?.[previewingIndex] || `High Click Variation #${previewingIndex + 1}`}
+                </h1>
+                
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-white/5 pb-6">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center text-white font-bold">C</div>
+                      <div>
+                         <p className="font-bold text-[15px] leading-tight flex items-center gap-1">Creator Studio <span className="material-symbols-outlined text-[14px] text-blue-400 fill-1">check_circle</span></p>
+                         <p className="text-xs text-text-secondary">4.91M subscribers</p>
+                      </div>
+                      <button className="ml-4 h-9 px-4 bg-white text-black font-black text-xs rounded-full hover:bg-gray-200 transition-colors">Subscribe</button>
+                   </div>
+
+                   {/* REFINED ACTION BAR */}
+                   <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
+                      {/* Segmented Like/Dislike */}
+                      <div className="flex items-center bg-white/10 rounded-full h-9 shrink-0">
+                         <button className="flex items-center gap-2 px-4 hover:bg-white/10 border-r border-white/10 rounded-l-full h-full">
+                           <span className="material-symbols-outlined text-[20px]">thumb_up</span> 
+                           <span className="text-[13px] font-medium">36K</span>
+                         </button>
+                         <button className="px-3 hover:bg-white/10 rounded-r-full h-full">
+                           <span className="material-symbols-outlined text-[20px]">thumb_down</span>
+                         </button>
+                      </div>
+
+                      {/* Share */}
+                      <button className="flex items-center gap-2 px-4 h-9 bg-white/10 rounded-full hover:bg-white/20 shrink-0">
+                         <span className="material-symbols-outlined text-[20px]">share</span> 
+                         <span className="text-[13px] font-medium">Share</span>
+                      </button>
+
+                      {/* Ask (AI Tool) */}
+                      <button className="flex items-center gap-2 px-4 h-9 bg-white/10 rounded-full hover:bg-white/20 shrink-0">
+                         <span className="material-symbols-outlined text-[20px] text-primary fill-1">auto_awesome</span> 
+                         <span className="text-[13px] font-medium">Ask</span>
+                      </button>
+
+                      {/* Save */}
+                      <button className="flex items-center gap-2 px-4 h-9 bg-white/10 rounded-full hover:bg-white/20 shrink-0">
+                         <span className="material-symbols-outlined text-[20px]">playlist_add</span> 
+                         <span className="text-[13px] font-medium">Save</span>
+                      </button>
+
+                      {/* More */}
+                      <button className="flex items-center justify-center min-w-[36px] h-9 bg-white/10 rounded-full hover:bg-white/20 shrink-0">
+                         <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                      </button>
+                   </div>
                 </div>
 
                 {/* Description Box */}
-                <div className="bg-white/10 rounded-xl p-3 hover:bg-white/[0.15] transition-colors cursor-pointer text-sm">
-                  <div className="flex gap-2 font-bold mb-1">
-                    <span>907,233 views</span>
-                    <span>1 day ago</span>
-                    <span className="text-white/60">#BangladeshCrisis #News</span>
-                  </div>
-                  <p className="whitespace-pre-wrap line-clamp-2 text-white/90">
-                    {suggestions?.description || "Watch VIRAL बात RAUNAC के साथ! Full expose on the current situation. Don't forget to like and subscribe for more deep dives into trending topics."}
-                  </p>
-                  <button className="font-bold mt-2 text-white hover:underline">...more</button>
-                </div>
-
-                {/* Mock Live Chat Box */}
-                <div className="border border-white/10 rounded-xl overflow-hidden mt-6">
-                  <div className="p-3 bg-white/5 border-b border-white/10 flex items-center justify-between">
-                    <span className="font-bold text-sm">Live chat replay</span>
-                    <button className="p-1 hover:bg-white/10 rounded-lg"><span className="material-symbols-outlined text-sm">close</span></button>
-                  </div>
-                  <div className="p-4 flex items-center gap-3">
-                    <span className="material-symbols-outlined text-white/40">chat</span>
-                    <span className="text-sm text-white/60">See what others said about this video while it was live.</span>
-                    <button className="ml-auto px-4 py-1.5 border border-white/20 hover:bg-white/10 rounded-full text-xs font-bold">Open panel</button>
-                  </div>
+                <div className="mt-4 p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer">
+                   <p className="text-[13px] font-bold mb-1">907,233 views  1 day ago  #ViralThumbAI #CreatorEconomy</p>
+                   <p className="text-[13px] text-white/90 leading-relaxed line-clamp-2">
+                     {suggestions?.description || "This video breaks down the psychological hooks used in high-CTR thumbnails. Learn how to convert more impressions into clicks with AI assistance."}
+                   </p>
+                   <span className="text-[13px] font-bold mt-2 block">...more</span>
                 </div>
               </div>
+            </div>
 
-              {/* Sidebar (Right) */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold mb-4 opacity-60">Up Next</h3>
-                {/* Map generated results or templates as sidebar items */}
-                {[...results, results[0], results[0], results[0]].slice(1, 10).map((url, i) => (
-                  <div key={i} className="flex gap-2 group cursor-pointer">
-                    <div className="relative w-40 aspect-video rounded-lg overflow-hidden shrink-0">
-                      <img src={url || `https://picsum.photos/seed/${i}/320/180`} className="w-full h-full object-cover" />
-                      <span className="absolute bottom-1 right-1 bg-black/80 text-[10px] px-1 rounded font-bold">11:47</span>
+            {/* Sidebar Suggested Videos */}
+            <div className="lg:col-span-4 space-y-4">
+               <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
+                  {['All', 'From this channel', 'Related', 'Recent'].map(t => (
+                    <span key={t} className="shrink-0 px-3 py-1.5 bg-white/10 rounded-lg text-xs font-bold border border-white/5 hover:bg-white/20 cursor-pointer">{t}</span>
+                  ))}
+               </div>
+               
+               {results.map((url, idx) => (
+                 <div 
+                   key={`side-${idx}`} 
+                   onClick={() => setPreviewingIndex(idx)}
+                   className={`flex gap-3 group cursor-pointer p-2 rounded-xl transition-all ${idx === previewingIndex ? 'bg-white/10 ring-1 ring-primary/30' : 'hover:bg-white/5'}`}
+                 >
+                    <div className="relative w-40 h-24 shrink-0 bg-black rounded-lg overflow-hidden border border-white/5">
+                       <img src={url} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                       <span className="absolute bottom-1 right-1 bg-black/80 text-[10px] px-1 font-bold rounded">11:05</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold line-clamp-2 leading-tight group-hover:text-primary transition-colors">{suggestions?.titles?.[(i+1)%3] || "Another Viral Title Concept"}</h4>
-                      <p className="text-[12px] text-white/60 mt-1">RJ Raunac <span className="material-symbols-outlined text-[10px] fill-1">check_circle</span></p>
-                      <p className="text-[12px] text-white/60">777K views • 2 weeks ago</p>
+                    <div className="flex-1">
+                       <h3 className="text-[13px] font-bold leading-tight line-clamp-2 mb-1 group-hover:text-primary transition-colors">
+                          {suggestions?.titles?.[idx] || "Thumbnail Hook Variation #"+(idx+1)}
+                       </h3>
+                       <p className="text-[11px] text-text-secondary">Creator Studio</p>
+                       <p className="text-[11px] text-text-secondary">42K views • 2 weeks ago</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-
+                 </div>
+               ))}
+               
+               <div className="pt-6 border-t border-white/5">
+                 <button 
+                   onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = results[previewingIndex];
+                      link.download = `ViralThumb_${previewingIndex + 1}.jpg`;
+                      link.click();
+                   }}
+                   className="w-full py-4 bg-primary text-white font-black rounded-xl shadow-neon flex items-center justify-center gap-2 hover:bg-primary-hover transition-all"
+                 >
+                   <span className="material-symbols-outlined">download</span>
+                   Final Download (4K)
+                 </button>
+               </div>
             </div>
           </div>
-          
-          {/* Action Footer for AI Actions */}
-          <footer className="h-20 bg-[#0f0f0f] border-t border-white/5 flex items-center justify-center gap-4 px-10">
-             <button onClick={() => setPreviewingIndex(null)} className="px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-full font-bold text-sm transition-all">Close Mockup</button>
-             <button 
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = results[previewingIndex];
-                  link.download = `YouTube_Thumbnail_${previewingIndex + 1}.jpg`;
-                  link.click();
-                }} 
-                className="px-10 py-2.5 bg-primary rounded-full font-bold text-sm shadow-neon hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-sm">download</span> Export Final Image
-              </button>
-          </footer>
         </div>
       )}
 

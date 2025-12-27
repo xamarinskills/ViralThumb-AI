@@ -19,18 +19,17 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
     "Action-oriented composition, dynamic elements, bold saturation, attention-grabbing center."
   ];
 
-  // Instructions for multilingual support and professional blending
   const systemPrompt = `
     TASK: Generate a viral, high-CTR (Click-Through Rate) YouTube thumbnail image.
     STYLE: ${style}.
-    USER PROMPT (Interpret correctly regardless of language): "${prompt}"
+    USER PROMPT: "${prompt}"
     VARIATION STRATEGY: ${variationHints[variationIndex]}
 
     CRITICAL INSTRUCTIONS:
-    1. LANGUAGE INDEPENDENCE: The user prompt might be in any language (Hindi, Spanish, Japanese, etc.). Understand the emotional and visual intent. 
-    2. ASSET BLENDING: If user images (assets) are provided, you MUST use the likeness of the people/objects in those images as the central subjects. Blend them seamlessly into the new environment. Match the lighting, shadows, and color grading of the background to the subjects.
-    3. NO TEXT OVERLAY: Do not add any text to the image unless it is part of the natural environment (like a sign).
-    4. QUALITY: High definition, cinematic, professional composition. Optimized for small mobile screens.
+    1. LANGUAGE INDEPENDENCE: Interpret the intent correctly even if prompt is in Hindi/Spanish/etc.
+    2. ASSET BLENDING: If user images are provided, use those subjects seamlessly.
+    3. NO TEXT OVERLAY: Do not add any text to the image.
+    4. QUALITY: 4K, cinematic, high-impact.
   `;
 
   const parts = [
@@ -44,7 +43,6 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
   ];
 
   try {
-    console.log(`[Variation ${variationIndex}] Requesting generation...`);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts },
@@ -55,38 +53,42 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
       }
     });
 
-    if (response.candidates && response.candidates.length > 0) {
-      const candidate = response.candidates[0];
-      if (candidate.content && candidate.content.parts) {
-        for (const part of candidate.content.parts) {
-          if (part.inlineData) {
-            console.log(`[Variation ${variationIndex}] Success: Image received.`);
-            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-          }
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
       }
     }
-    
-    if (response.text) {
-      console.warn(`[Variation ${variationIndex}] Model returned text instead of image:`, response.text);
-      throw new Error(`AI Feedback: ${response.text}`);
-    }
-
-    throw new Error("No image data returned from model.");
+    throw new Error("No image data returned.");
   } catch (error: any) {
-    console.error(`[Variation ${variationIndex}] Gemini Image Error:`, error);
     throw new Error(error.message || "Failed to generate thumbnail.");
   }
 }
 
-export async function generateVideoSuggestions(prompt: string, style: string) {
+/**
+ * Analyzes the generated images to create 3 unique, high-CTR titles.
+ */
+export async function generateVideoSuggestions(prompt: string, style: string, images: string[]) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
+    const parts = [
+      { text: `CONTEXT: User prompt was "${prompt}" in style "${style}".
+        TASK: Look at these 3 generated thumbnails. For EACH image, generate a unique, highly viral clickbait YouTube title.
+        The titles should be in the same language as the user's prompt. 
+        Also provide one shared video description.` },
+      ...images.map(img => ({
+        inlineData: {
+          mimeType: getMimeType(img),
+          data: img.split(',')[1]
+        }
+      }))
+    ];
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `User Thumbnail Concept: "${prompt}". Style: "${style}". 
-      Generate 3 viral titles (in the same language as the prompt if applicable) and a short description.`,
+      contents: { parts },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -95,11 +97,11 @@ export async function generateVideoSuggestions(prompt: string, style: string) {
             titles: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: "3 viral titles."
+              description: "3 unique clickbait titles, one for each image provided."
             },
             description: {
               type: Type.STRING,
-              description: "A short engaging description."
+              description: "A short viral description for the video."
             }
           },
           required: ["titles", "description"]
@@ -109,7 +111,11 @@ export async function generateVideoSuggestions(prompt: string, style: string) {
 
     return JSON.parse(response.text || "{}");
   } catch (err) {
-    return { titles: ["Viral Title 1", "Viral Title 2", "Viral Title 3"], description: "Optimized for the algorithm." };
+    console.error("Title generation error:", err);
+    return { 
+      titles: ["Viral Concept A", "Viral Concept B", "Viral Concept C"], 
+      description: "Optimized for the algorithm." 
+    };
   }
 }
 
