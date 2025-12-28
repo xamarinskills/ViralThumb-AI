@@ -2,9 +2,13 @@
 import React, { useState, useMemo } from 'react';
 import { Navbar, Footer } from '../components/Layout';
 import { TEMPLATES } from '../constants';
+import { User } from '../types';
 
+// Add user and onLogout to the props interface
 interface TemplateLibraryProps {
   onNavigate: (page: any) => void;
+  user?: User | null;
+  onLogout?: () => void;
 }
 
 const CATEGORIES = [
@@ -21,7 +25,8 @@ const CATEGORIES = [
   'Finance'
 ];
 
-const TemplateLibrary: React.FC<TemplateLibraryProps> = ({ onNavigate }) => {
+// Destructure new props and pass them to Navbar
+const TemplateLibrary: React.FC<TemplateLibraryProps> = ({ onNavigate, user, onLogout }) => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -36,7 +41,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({ onNavigate }) => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Navbar onNavigate={onNavigate} variant="app" />
+      <Navbar onNavigate={onNavigate} variant="app" user={user} onLogout={onLogout} />
       
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-12">
         <header className="mb-12">

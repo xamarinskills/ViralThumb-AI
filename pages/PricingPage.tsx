@@ -1,15 +1,25 @@
 
 import React from 'react';
 import { Navbar, Footer } from '../components/Layout';
+import { User } from '../types';
 
+// Add user and onLogout to the props interface
 interface PricingPageProps {
   onNavigate: (page: any) => void;
+  user?: User | null;
+  onLogout?: () => void;
 }
 
-const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
+// Destructure new props and pass them to Navbar
+const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, user, onLogout }) => {
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar onNavigate={onNavigate} />
+      <Navbar 
+        onNavigate={onNavigate} 
+        user={user} 
+        onLogout={onLogout} 
+        variant={user ? 'app' : 'landing'} 
+      />
       
       <main className="flex-1 flex flex-col items-center py-20 px-6">
         <header className="text-center max-w-2xl mx-auto mb-16">

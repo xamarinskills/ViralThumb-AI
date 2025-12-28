@@ -6,9 +6,10 @@ import { User, Thumbnail } from '../types';
 interface DashboardProps {
   user: User | null;
   onNavigate: (page: any) => void;
+  onLogout?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onLogout }) => {
   const recentThumbnails: Thumbnail[] = [
     { id: "t1", url: "https://picsum.photos/seed/t1/800/450", prompt: "Cyberpunk neon city", style: "Tech", createdAt: "2 mins ago", status: 'completed' },
     { id: "t2", url: "https://picsum.photos/seed/t2/800/450", prompt: "Man shocked mouth open", style: "Reaction", createdAt: "1 hour ago", status: 'completed' },
@@ -19,17 +20,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar onNavigate={onNavigate} variant="app" user={user} />
+      <Navbar onNavigate={onNavigate} variant="app" user={user} onLogout={onLogout} />
       
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-          <div>
+          <div className="animate-fade-in">
             <h1 className="text-4xl font-black mb-2">Welcome back, {user.name.split(' ')[0]} 👋</h1>
             <p className="text-text-secondary">Here's how your channel is performing with AI thumbnails.</p>
           </div>
           <button 
             onClick={() => onNavigate('generator')}
-            className="h-14 px-8 bg-primary hover:bg-primary-hover text-white font-black rounded-2xl shadow-neon flex items-center gap-2 transition-all hover:scale-105"
+            className="h-14 px-8 bg-primary hover:bg-primary-hover text-white font-black rounded-2xl shadow-neon flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
           >
             <span className="material-symbols-outlined">add_circle</span>
             Create New Thumbnail
@@ -38,7 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <StatCard label="Generations" value="12/50" sub="Monthly quota" icon="bolt" />
+          <StatCard label="Generations" value={`${user.credits}/50`} sub="Monthly quota" icon="bolt" />
           <StatCard label="Total Saved" value="145" sub="+12 this week" icon="bookmark" />
           <StatCard label="Storage" value="2.4GB" sub="Cloud sync active" icon="cloud" />
           <div className="p-6 rounded-3xl bg-gradient-to-br from-primary/20 to-purple-800/20 border border-primary/20 relative overflow-hidden group cursor-pointer" onClick={() => onNavigate('pricing')}>
@@ -63,7 +64,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
                   <button className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[20px]">download</span>
                   </button>
-                  <button className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center hover:scale-110 transition-transform">
+                  <button 
+                    onClick={() => onNavigate('generator')}
+                    className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center hover:scale-110 transition-transform"
+                  >
                     <span className="material-symbols-outlined text-[20px]">edit</span>
                   </button>
                 </div>
@@ -88,7 +92,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
         </div>
 
         {/* Promo Banner */}
-        <div className="w-full rounded-3xl p-10 bg-gradient-to-r from-primary/20 via-surface to-surface border border-primary/20 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="w-full rounded-3xl p-10 bg-gradient-to-r from-primary/20 via-surface to-surface border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-neon shrink-0">
               <span className="material-symbols-outlined text-white text-[32px]">rocket_launch</span>

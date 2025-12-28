@@ -2,10 +2,12 @@
 export interface User {
   id: string;
   name: string;
+  username: string;
   email: string;
   avatar: string;
   credits: number;
   plan: 'free' | 'creator' | 'pro';
+  role: 'user' | 'admin';
 }
 
 export interface Thumbnail {

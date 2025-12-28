@@ -4,16 +4,17 @@ import { APP_NAME } from '../constants';
 
 interface NavbarProps {
   onNavigate: (page: any) => void;
+  onLogout?: () => void;
   variant?: 'landing' | 'app';
   user?: any;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigate, variant = 'landing', user }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, variant = 'landing', user }) => {
   return (
     <nav className="sticky top-0 z-50 w-full glass border-b border-white/5 px-6 py-4 flex items-center justify-between">
       <div 
         className="flex items-center gap-2 cursor-pointer group"
-        onClick={() => onNavigate('landing')}
+        onClick={() => onNavigate(user ? 'dashboard' : 'landing')}
       >
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-neon group-hover:scale-110 transition-transform">
           <span className="material-symbols-outlined text-white">auto_awesome</span>
@@ -22,32 +23,46 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, variant = 'landing',
       </div>
 
       <div className="hidden md:flex items-center gap-8">
-        {variant === 'landing' ? (
+        {user ? (
+          <>
+            <button onClick={() => onNavigate('dashboard')} className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Dashboard</button>
+            <button onClick={() => onNavigate('generator')} className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Generator</button>
+            <button onClick={() => onNavigate('templates')} className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Templates</button>
+          </>
+        ) : (
           <>
             <a href="#features" className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Features</a>
             <a href="#showcase" className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Showcase</a>
             <button onClick={() => onNavigate('pricing')} className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Pricing</button>
-          </>
-        ) : (
-          <>
-            <button onClick={() => onNavigate('dashboard')} className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Dashboard</button>
-            <button onClick={() => onNavigate('templates')} className="text-sm font-medium text-text-secondary hover:text-white transition-colors">Library</button>
           </>
         )}
       </div>
 
       <div className="flex items-center gap-4">
         {user ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-bold">{user.name}</p>
-              <p className="text-[10px] text-primary">{user.credits} Credits</p>
+              <div className="flex items-center justify-end gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                <p className="text-[10px] text-primary font-black uppercase tracking-widest">{user.credits} Credits</p>
+              </div>
             </div>
-            <div 
-              className="w-10 h-10 rounded-full bg-cover bg-center border border-white/10 cursor-pointer"
-              style={{ backgroundImage: `url(${user.avatar})` }}
-              onClick={() => onNavigate('dashboard')}
-            />
+            
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-10 h-10 rounded-full bg-cover bg-center border border-white/10 shadow-lg cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                style={{ backgroundImage: `url(${user.avatar})` }}
+                onClick={() => onNavigate('dashboard')}
+              />
+              <button 
+                onClick={onLogout}
+                className="w-10 h-10 rounded-full bg-surface-light border border-white/5 flex items-center justify-center hover:bg-red-500/10 hover:text-red-400 transition-all group"
+                title="Logout"
+              >
+                <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">logout</span>
+              </button>
+            </div>
           </div>
         ) : (
           <>
