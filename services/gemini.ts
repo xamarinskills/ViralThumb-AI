@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
 const getMimeType = (dataUrl: string) => {
   const match = dataUrl.match(/^data:(.*);base64,/);
@@ -11,8 +10,8 @@ const getMimeType = (dataUrl: string) => {
  */
 export async function generateThumbnailVariation(prompt: string, style: string, assets: string[], variationIndex: number) {
   // Use the API key exclusively from environment variables
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" }); 
-  
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || "" });
+
   const variationHints = [
     "Dynamic close-up, high contrast, vibrant cinematic colors, focus on main subject.",
     "Cinematic wide angle, dramatic depth of field, atmospheric lighting, professional composition.",
@@ -20,16 +19,18 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
   ];
 
   const systemPrompt = `
-    Generate a viral high-CTR YouTube thumbnail image.
+    Generate a professional, family-friendly viral high-CTR YouTube thumbnail image.
     CONCEPT: "${prompt}"
     VISUAL STYLE: ${style}
     COMPOSITION: ${variationHints[variationIndex]}
 
-    IMPORTANT:
-    1. Do not include any text, letters, or numbers in the image.
-    2. If people are in the provided assets, incorporate them naturally into the scene.
-    3. Ensure the result is 16:9 aspect ratio, high definition.
-    4. Focus on clarity and high impact.
+    IMPORTANT GUIDELINES:
+    1. Create a safe, appropriate, and professional thumbnail suitable for all audiences.
+    2. Do not include any text, letters, or numbers in the image.
+    3. If people are in the provided assets, incorporate them naturally and professionally into the scene.
+    4. Ensure the result is 16:9 aspect ratio, high definition.
+    5. Focus on clarity, high impact, and visual appeal.
+    6. Keep content appropriate, professional, and suitable for YouTube's community guidelines.
   `;
 
   const parts = [
@@ -46,18 +47,111 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts },
-      config: { imageConfig: { aspectRatio: "16:9" } }
+      config: {
+        imageConfig: { aspectRatio: "16:9" },
+        // Safety settings - allow more content types
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
+          }
+        ]
+      }
     });
 
     const candidate = response.candidates?.[0];
-    if (!candidate?.content?.parts) throw new Error("Safety filters blocked this generation.");
 
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    // Log the full response for debugging
+    console.log("Gemini API Response:", {
+      hasCandidate: !!candidate,
+      finishReason: candidate?.finishReason,
+      hasContent: !!candidate?.content,
+      partsCount: candidate?.content?.parts?.length,
+      parts: candidate?.content?.parts?.map((p: any) => ({
+        hasText: !!p.text,
+        hasInlineData: !!p.inlineData,
+        mimeType: p.inlineData?.mimeType
+      }))
+    });
+
+    // Check for safety blocks
+    if (candidate?.finishReason === 'SAFETY' || candidate?.finishReason === 'RECITATION') {
+      throw new Error("Safety filters blocked this generation. Please try:\n• A more specific, professional prompt\n• Avoiding potentially sensitive topics\n• Describing the image in more detail");
     }
-    throw new Error("No image data returned.");
+
+    // Check for other finish reasons
+    if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+      console.warn("Unexpected finish reason:", candidate.finishReason);
+    }
+
+    // Check safety ratings
+    if (candidate?.safetyRatings) {
+      const blockedRatings = candidate.safetyRatings.filter((r: any) =>
+        r.probability === 'HIGH' || r.probability === 'MEDIUM' || r.blocked
+      );
+      if (blockedRatings.length > 0) {
+        const categories = blockedRatings.map((r: any) => r.category || 'unknown').join(', ');
+        throw new Error(`Content was flagged as: ${categories}. Please modify your prompt to be more appropriate.`);
+      }
+    }
+
+    if (!candidate?.content?.parts) {
+      console.error("No content parts in response:", candidate);
+      throw new Error("Safety filters blocked this generation. Try modifying your prompt to be more specific and professional.");
+    }
+
+    // Look for image data in parts
+    for (const part of candidate.content.parts) {
+      if (part.inlineData && part.inlineData.data) {
+        const mimeType = part.inlineData.mimeType || 'image/png';
+        return `data:${mimeType};base64,${part.inlineData.data}`;
+      }
+
+      // Check if there's text instead (might be an error message)
+      if (part.text) {
+        console.warn("Received text instead of image:", part.text);
+      }
+    }
+
+    // If we get here, no image data was found
+    console.error("No image data in response. Full candidate:", JSON.stringify(candidate, null, 2));
+    throw new Error("No image data returned from API. The model may have returned text instead of an image. Please try a different prompt or check the API response format.");
   } catch (error: any) {
     console.error("Gemini Image Error:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      status: error?.status,
+      response: error?.response
+    });
+
+    // Provide more helpful error messages
+    if (error?.message?.includes('Safety filters') || error?.message?.includes('SAFETY')) {
+      throw new Error("Content was blocked by safety filters. Please try:\n1. Using a more specific, professional prompt\n2. Avoiding potentially sensitive topics\n3. Describing the image in more detail");
+    }
+
+    if (error?.message?.includes('API key') || error?.code === 400 || error?.status === 400) {
+      if (error?.message?.includes('API key not valid')) {
+        throw new Error("Invalid API key. Please check your GEMINI_API_KEY in .env.local and make sure it's valid.");
+      }
+    }
+
+    if (error?.message?.includes('No image data returned')) {
+      throw new Error("The API didn't return image data. This might be due to:\n1. Model limitations or availability\n2. Prompt format issues\n3. API response format changes\n\nPlease try:\n• A simpler, more specific prompt\n• Checking browser console for detailed error logs\n• Trying again in a moment");
+    }
+
     throw error;
   }
 }
@@ -66,14 +160,15 @@ export async function generateThumbnailVariation(prompt: string, style: string, 
  * AI Scorer: Evaluates a thumbnail's viral potential.
  */
 export async function analyzeThumbnailCTR(imageUrl: string, prompt: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
-  
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || "" });
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
-          { text: `Analyze this YouTube thumbnail for the concept: "${prompt}". 
+          {
+            text: `Analyze this YouTube thumbnail for the concept: "${prompt}". 
             Evaluate it based on:
             1. Visual Hierarchy (is the subject clear?)
             2. Color Palette (is it eye-catching?)
@@ -111,7 +206,7 @@ export async function analyzeThumbnailCTR(imageUrl: string, prompt: string) {
 }
 
 export async function generateVideoSuggestions(prompt: string, style: string, images: string[]) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || "" });
   try {
     const parts = [
       { text: `Generate 3 viral clickbait titles for these thumbnails. Concept: "${prompt}". Shared Description.` },
@@ -139,7 +234,7 @@ export async function generateVideoSuggestions(prompt: string, style: string, im
 }
 
 export async function enhancePrompt(prompt: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || "" });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',

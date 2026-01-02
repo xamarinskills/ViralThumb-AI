@@ -41,7 +41,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({ onNavigate, user, onL
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Navbar onNavigate={onNavigate} variant="app" user={user} onLogout={onLogout} />
+      <Navbar onNavigate={onNavigate} variant="app" user={user} onLogout={onLogout} activePage="templates" />
       
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-12">
         <header className="mb-12">

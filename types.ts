@@ -8,6 +8,8 @@ export interface User {
   credits: number;
   plan: 'free' | 'creator' | 'pro';
   role: 'user' | 'admin';
+  is_deleted?: boolean;
+  deleted_at?: string;
 }
 
 export interface Thumbnail {
