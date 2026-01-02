@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@source "./App.tsx";
+@source "./index.tsx";
+@source "./components/**/*.{ts,tsx}";
+@source "./pages/**/*.{ts,tsx}";
+
+@layer base {
+
+    button,
+    [role="button"],
+    .cursor-pointer {
+        cursor: pointer !important;
+    }
+}
+
 @theme {
     /* Colors */
     --color-primary: #8c25f4;
