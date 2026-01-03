@@ -17,7 +17,7 @@ Error: "API key not valid. Please pass a valid API key."
 Open `.env.local` in the project root and add:
 
 ```
-GEMINI_API_KEY=your-api-key-here
+GEMINI_API_KEY=AIzaSyB1234567890abcdefghijklmnopqrstuvwxyz
 ```
 
 **Example:**
