@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   // Load env vars from .env, .env.local, .env.[mode], .env.[mode].local
   const env = loadEnv(mode, process.cwd(), '');
   return {
-    base: '/ViralThumb-AI/pages/',
+    base: '/ViralThumb-AI/',
     server: {
       port: 3000,
       host: '0.0.0.0',

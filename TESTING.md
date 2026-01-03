@@ -23,7 +23,7 @@ After running the fix script, the connection test should pass.
 
 ### 3. Test Sign-Up in the Browser
 
-1. **Open the app**: http://localhost:3000/ViralThumb-AI/pages/
+1. **Open the app**: http://localhost:3000
 2. **Open Browser Console**: Press F12 (or Cmd+Option+I on Mac)
 3. **Navigate to Sign Up page**
 4. **Fill in the form**:

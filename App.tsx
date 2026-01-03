@@ -14,7 +14,6 @@ import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import { User } from './types';
 import { supabase, getOrCreateProfile, isSupabaseConfigured } from './services/supabase';
-import { BASE_PATH } from './constants';
 
 type Page = 'landing' | 'login' | 'dashboard' | 'generator' | 'templates' | 'pricing' | 'checkout' | 'success' | 'admin' | 'diagnostic' | 'history' | 'settings';
 
@@ -182,44 +181,28 @@ const App: React.FC = () => {
       return;
     }
     setCurrentPage(page);
-    // Ensure consistent path handling with BASE_PATH
-    // If page is landing, we use the BASE_PATH as is (which already includes trailing slash)
-    const targetPath = page === 'landing' ? BASE_PATH : `${BASE_PATH}${page}`;
-    window.history.pushState({}, '', targetPath);
+    window.history.pushState({}, '', `/${page === 'landing' ? '' : page}`);
     window.scrollTo(0, 0);
   };
 
   // Handle browser back/forward buttons and initial URL
   useEffect(() => {
     const handlePopState = () => {
-      let pathStr = window.location.pathname;
-
-      // Strip BASE_PATH if present
-      if (pathStr.startsWith(BASE_PATH)) {
-        pathStr = pathStr.substring(BASE_PATH.length);
-      } else {
-        // Fallback for cases where BASE_PATH might be missing the trailing slash in the URL
-        const cleanBasePath = BASE_PATH.endsWith('/') ? BASE_PATH.slice(0, -1) : BASE_PATH;
-        if (pathStr.startsWith(cleanBasePath)) {
-          pathStr = pathStr.substring(cleanBasePath.length);
-        }
-      }
-
-      // Remove leading slash
-      const path = pathStr.replace(/^\//, '') || 'landing';
-
+      const path = window.location.pathname.substring(1) || 'landing';
       const validPages: Page[] = ['landing', 'login', 'dashboard', 'generator', 'templates', 'pricing', 'checkout', 'success', 'admin', 'diagnostic', 'history', 'settings'];
-
+      
       if (validPages.includes(path as Page)) {
         setCurrentPage(path as Page);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
-
-    // Check initial URL on mount
-    handlePopState();
-
+    
+    // Check initial URL on mount if user is already authenticated or for public pages
+    // For protected pages, the auth check effect will handle redirection if needed, 
+    // but we can hint the desired page here if we want to support deep linking.
+    // For now, we'll let the click interaction drive the URL update as requested.
+    
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 

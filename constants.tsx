@@ -2,8 +2,6 @@
 import React from 'react';
 
 export const APP_NAME = "ViralThumb AI";
-export const BASE_PATH = "/ViralThumb-AI/pages/";
-
 
 export const TEMPLATES = [
   {

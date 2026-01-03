@@ -45,7 +45,7 @@ WHERE id = 'USER_ID_HERE'::uuid;
 
 ## Step 3: Test Sign-Up Again
 
-1. Go to your app: http://localhost:3000/ViralThumb-AI/pages/
+1. Go to your app: http://localhost:3000
 2. Open browser console (F12)
 3. Try signing up with a NEW email address (to avoid rate limits)
 4. Fill in the form and submit

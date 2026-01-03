@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured, isUsernameTaken, syncProfileRecord } from '../services/supabase';
-import { BASE_PATH } from '../constants';
 
 interface LoginPageProps {
   onLogin: (user: any) => void;
@@ -45,7 +44,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
         const cleanUsername = username.trim();
         const cleanFullName = fullName.trim();
         const cleanEmail = email.trim();
-        
+
         if (!cleanUsername || cleanUsername.length < 3) throw new Error("Username must be at least 3 characters.");
         if (!cleanFullName) throw new Error("Full Name is required.");
 
@@ -55,7 +54,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
           // Check if it's the current user
           const { data: { user } } = await supabase.auth.getUser();
           const currentUsername = user?.user_metadata?.username || user?.user_metadata?.user_name;
-          
+
           if (user && currentUsername === cleanUsername) {
             throw new Error("You are already logged in with this username. Please refresh the page or go to Dashboard.");
           }
@@ -73,7 +72,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
               full_name: cleanFullName,
               user_name: cleanUsername
             },
-            emailRedirectTo: `${window.location.origin}${BASE_PATH}`
+            emailRedirectTo: window.location.origin
           }
         });
 
@@ -182,14 +181,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
           <button
             type="button"
             onClick={() => { setIsSignUp(false); setError(null); }}
-            className={`flex-1 py-3.5 rounded-[22px] text-xs font-black uppercase tracking-widest transition-all duration-300 ${!isSignUp ? 'bg-primary text-white shadow-neon' : 'text-text-secondary hover:text-white'}`}
+            className={`flex-1 py-3.5 rounded-[22px] text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.02] ${!isSignUp ? 'bg-primary text-white shadow-neon' : 'text-text-secondary hover:text-white'}`}
           >
             Login
           </button>
           <button
             type="button"
             onClick={() => { setIsSignUp(true); setError(null); }}
-            className={`flex-1 py-3.5 rounded-[22px] text-xs font-black uppercase tracking-widest transition-all duration-300 ${isSignUp ? 'bg-primary text-white shadow-neon' : 'text-text-secondary hover:text-white'}`}
+            className={`flex-1 py-3.5 rounded-[22px] text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.02] ${isSignUp ? 'bg-primary text-white shadow-neon' : 'text-text-secondary hover:text-white'}`}
           >
             Sign Up
           </button>
@@ -252,7 +251,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-16 bg-primary hover:bg-primary-hover text-white font-black rounded-2xl shadow-neon transition-all flex items-center justify-center gap-3 disabled:opacity-50 mt-4"
+            className="w-full h-16 bg-primary hover:bg-primary-hover text-white font-black rounded-2xl shadow-neon transition-all hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-50 mt-4"
           >
             {loading ? (
               <span className="material-symbols-outlined animate-spin text-[24px]">progress_activity</span>
